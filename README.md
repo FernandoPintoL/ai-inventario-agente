@@ -78,13 +78,26 @@ DB_POOL_SIZE=5
 
 ## 🏃‍♂️ Ejecución
 
-### Desarrollo
+### Desarrollo Local
 ```bash
-python scripts/run_dev.py
+# Activar entorno virtual
+source .venv/bin/activate  # En Windows: .venv\Scripts\activate
+
+# Configurar variables para desarrollo
+export ENVIRONMENT=development
+export PORT=8080
+
+# Ejecutar servidor de desarrollo
+python main.py
 ```
 
-### Producción
+### Producción Local
 ```bash
+# Configurar variables para producción
+export ENVIRONMENT=production
+export PORT=8080
+
+# Ejecutar servidor de producción
 python main.py
 ```
 
@@ -93,15 +106,198 @@ python main.py
 python scripts/test_connection.py
 ```
 
+---
+
+## 🚀 Despliegue en Railway
+
+### Pre-requisitos
+1. Cuenta en [Railway](https://railway.app)
+2. Railway CLI instalado: `npm install -g @railway/cli`
+3. Repositorio Git con el código
+
+### 🔧 Pasos de Despliegue
+
+#### 1. Preparar el Proyecto
+```bash
+# Clonar o navegar al proyecto
+cd AgenteInteligente
+
+# Verificar que todos los archivos estén presentes
+ls -la Dockerfile railway.json
+```
+
+#### 2. Configurar Railway
+```bash
+# Login a Railway
+railway login
+
+# Crear nuevo proyecto
+railway new
+
+# O conectar proyecto existente
+railway link
+```
+
+#### 3. Agregar Base de Datos PostgreSQL
+1. Ve al dashboard de Railway
+2. Agrega el plugin "PostgreSQL"
+3. Las variables de conexión se configurarán automáticamente
+
+#### 4. Configurar Variables de Entorno
+En el dashboard de Railway, ve a "Variables" y agrega:
+
+```bash
+# Variables requeridas
+CLAUDE_API_KEY=tu_api_key_de_claude
+CLAUDE_MODEL=claude-3-5-haiku-20241022
+CLAUDE_DEMO_MODE=false
+CLAUDE_FALLBACK_ENABLED=true
+ENVIRONMENT=production
+HOST=0.0.0.0
+PORT=8080
+SECRET_KEY=genera-una-clave-secreta-muy-segura
+LOG_LEVEL=INFO
+DB_POOL_SIZE=10
+DB_MAX_OVERFLOW=20
+DB_POOL_TIMEOUT=30
+```
+
+#### 5. Desplegar
+```bash
+# Despliegue automático desde Git
+railway up
+
+# O conectar repositorio GitHub desde el dashboard
+```
+
+#### 6. Verificar Despliegue
+```bash
+# Ver logs en tiempo real
+railway logs
+
+# Obtener URL pública
+railway domain
+
+# Verificar estado del servicio
+curl https://tu-app.railway.app/api/v1/health
+```
+
+### 🌐 URLs de Producción
+
+Una vez desplegado, tu API estará disponible en:
+
+- **URL Principal**: `https://tu-app.railway.app`
+- **Health Check**: `https://tu-app.railway.app/api/v1/health`
+- **Endpoint Principal**: `https://tu-app.railway.app/api/v1/query`
+- **Documentación**: Deshabilitada en producción por seguridad
+
+### 🔧 Configuración Avanzada
+
+#### Variables de Entorno Automáticas
+Railway configura automáticamente:
+- `RAILWAY_ENVIRONMENT_NAME` - Nombre del entorno
+- `RAILWAY_PUBLIC_DOMAIN` - Dominio público
+- `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` - PostgreSQL
+
+#### Comandos Útiles de Railway
+```bash
+# Ver todas las variables
+railway variables
+
+# Agregar variable
+railway variables set VARIABLE_NAME=value
+
+# Ver información del proyecto
+railway status
+
+# Abrir dashboard
+railway open
+
+# Ver métricas
+railway metrics
+```
+
+#### Configurar Dominio Personalizado
+1. Ve a "Settings" > "Domains" en Railway
+2. Agrega tu dominio personalizado
+3. Configura DNS según las instrucciones
+
+### 🔍 Monitoreo y Logs
+
+#### Ver Logs
+```bash
+# Logs en tiempo real
+railway logs --follow
+
+# Logs con filtros
+railway logs --service=web
+```
+
+#### Health Checks
+Railway monitoreará automáticamente:
+- `GET /api/v1/health` cada 30 segundos
+- Timeout de 100 segundos
+- Reinicio automático en caso de fallo
+
+### 🐛 Troubleshooting
+
+#### Problemas Comunes
+
+**Error de Puerto:**
+```bash
+# Verificar variable PORT
+railway variables get PORT
+# Debe ser 8080
+```
+
+**Error de Base de Datos:**
+```bash
+# Verificar plugin PostgreSQL
+railway plugins
+
+# Ver variables de BD
+railway variables | grep PG
+```
+
+**Error de Variables:**
+```bash
+# Listar todas las variables
+railway variables
+
+# Verificar variables requeridas
+railway variables get CLAUDE_API_KEY
+railway variables get SECRET_KEY
+```
+
+#### Logs de Debug
+```bash
+# Ver logs detallados
+railway logs --follow | grep -i error
+
+# Ejecutar comando en contenedor
+railway shell
+```
+
+---
+
 ## 🌐 Integración Externa
 
-### URL Base del Servicio
+### URLs Base del Servicio
 
+#### Desarrollo Local
 ```
-http://localhost:8000
+http://localhost:8080
 ```
 
-Para producción, reemplaza `localhost:8000` con tu dominio y puerto correspondiente.
+#### Producción (Railway)
+```
+https://tu-app.railway.app
+```
+
+#### Configuración por Entorno
+Los sistemas externos deben conectarse a:
+- **Desarrollo**: `http://localhost:8080`
+- **Producción**: `https://tu-dominio.railway.app` (reemplaza con tu URL real)
 
 ### Autenticación
 

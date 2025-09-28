@@ -53,29 +53,43 @@ async def lifespan(app: FastAPI):
 def create_application() -> FastAPI:
     """Create and configure the FastAPI application."""
 
+    # Configure servers based on environment
+    servers = []
+    if settings.is_production:
+        servers.append({"url": settings.base_url, "description": "Production server"})
+    else:
+        servers.append({"url": settings.base_url, "description": "Development server"})
+
     app = FastAPI(
         title="Intelligent Agent API",
         description="Natural language to SQL conversion service for inventory management",
         version="1.0.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url="/docs" if not settings.is_production else None,  # Disable docs in production
+        redoc_url="/redoc" if not settings.is_production else None,  # Disable redoc in production
         openapi_url="/openapi.json",
         lifespan=lifespan,
-        servers=[{"url": settings.server_url, "description": "Development server"}]
+        servers=servers
     )
 
     # Add middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Configure appropriately for production
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
 
+    # Configure trusted hosts based on environment
+    trusted_hosts = settings.allowed_hosts_list
+    if settings.is_production:
+        trusted_hosts = trusted_hosts + ["*.railway.app"]
+    else:
+        trusted_hosts = trusted_hosts + ["*"]
+
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=settings.allowed_hosts_list + ["*"]  # Configure for production
+        allowed_hosts=trusted_hosts
     )
 
     # Include routers
@@ -146,15 +160,35 @@ def main():
         # Create application
         app = create_application()
 
+        # Configure uvicorn based on environment
+        uvicorn_config = {
+            "app": app,
+            "host": settings.host,
+            "port": settings.port,
+            "log_level": settings.log_level.lower(),
+            "access_log": True,
+        }
+
+        # Development-specific settings
+        if settings.is_development:
+            uvicorn_config.update({
+                "reload": True,  # Auto-reload on code changes
+                "reload_dirs": ["app", "config"],  # Watch these directories
+            })
+        else:
+            # Production-specific settings
+            uvicorn_config.update({
+                "reload": False,
+                "workers": 1,  # Railway handles scaling
+                "loop": "uvloop",  # Better performance
+                "http": "httptools",  # Better performance
+            })
+
+        print(f"Starting Intelligent Agent API on {settings.environment} environment")
+        print(f"Server running at: {settings.base_url}")
+
         # Run the application
-        uvicorn.run(
-            app,
-            host="0.0.0.0",
-            port=8000,
-            log_level="info",
-            access_log=True,
-            reload=False  # Set to True for development
-        )
+        uvicorn.run(**uvicorn_config)
 
     except Exception as e:
         print(f"Failed to start application: {e}")

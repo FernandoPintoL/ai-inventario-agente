@@ -23,12 +23,26 @@ MANIFEST
 
 # Virtual Environment
 .env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# API Keys and Secrets
+*api_key*
+*secret*
+*token*
+*credentials*
+*.pem
+*.key
+config/secrets.py
 
 # IDE
 .vscode/
