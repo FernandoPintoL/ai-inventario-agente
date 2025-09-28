@@ -1,12 +1,14 @@
 import time
 from typing import Dict, List, Any, Optional, Tuple
+from decimal import Decimal
+from datetime import datetime, date
 
 from app.core.exceptions import DatabaseException, ValidationException
 from app.core.logging import get_logger
 from app.database import DatabaseManager
 from app.services.ai_service import AIService
 from app.models.requests import HumanQueryRequest
-from app.models.responses import QueryResponse
+from app.models.responses import QueryResponse, StructuredTableData, TableColumn
 
 logger = get_logger("query_service")
 
@@ -40,7 +42,10 @@ class QueryService:
             # Step 4: Generate natural language answer
             answer = await self.ai_service.build_answer(raw_data, request.human_query)
 
-            # Step 5: Prepare additional information if requested
+            # Step 5: Convert to structured table data for external systems
+            structured_data = self._convert_to_structured_data(raw_data)
+
+            # Step 6: Prepare additional information if requested
             table_info = None
             if request.include_table_info:
                 table_info = self.ai_service.get_table_schema()
@@ -51,6 +56,7 @@ class QueryService:
                 answer=answer,
                 sql_query=sql_query,
                 raw_data=raw_data if len(raw_data) <= 50 else raw_data[:50],  # Limit raw data
+                structured_data=structured_data,
                 execution_time=execution_time,
                 table_info=table_info
             )
@@ -76,6 +82,72 @@ class QueryService:
             sql_query = sql_query.rstrip()[:-1]  # Remove semicolon
 
         return f"{sql_query} LIMIT {limit}"
+
+    def _convert_to_structured_data(self, raw_data: List[Dict[str, Any]]) -> Optional[StructuredTableData]:
+        """Convert raw database results to structured table data for external systems."""
+        if not raw_data:
+            return None
+
+        try:
+            # Extract column information from the first row
+            first_row = raw_data[0]
+            columns = []
+
+            for column_name, value in first_row.items():
+                # Determine data type based on the value
+                data_type = self._determine_data_type(value)
+                nullable = value is None  # Basic nullability check
+
+                columns.append(TableColumn(
+                    name=column_name,
+                    type=data_type,
+                    nullable=nullable
+                ))
+
+            # Convert data rows to arrays
+            rows = []
+            for row_dict in raw_data:
+                row_array = []
+                for column in columns:
+                    value = row_dict.get(column.name)
+                    # Convert special types to JSON-serializable values
+                    row_array.append(self._convert_value_for_json(value))
+                rows.append(row_array)
+
+            return StructuredTableData(
+                columns=columns,
+                rows=rows,
+                total_rows=len(raw_data)
+            )
+
+        except Exception as e:
+            logger.warning(f"Error converting to structured data: {e}")
+            return None
+
+    def _determine_data_type(self, value: Any) -> str:
+        """Determine the data type for a column based on its value."""
+        if value is None:
+            return "string"  # Default to string for null values
+
+        if isinstance(value, bool):
+            return "boolean"
+        elif isinstance(value, (int, float, Decimal)):
+            return "number"
+        elif isinstance(value, (datetime, date)):
+            return "date"
+        else:
+            return "string"
+
+    def _convert_value_for_json(self, value: Any) -> Any:
+        """Convert database values to JSON-serializable formats."""
+        if value is None:
+            return None
+        elif isinstance(value, Decimal):
+            return float(value)
+        elif isinstance(value, (datetime, date)):
+            return value.isoformat()
+        else:
+            return value
 
     async def get_database_schema(self, table_names: Optional[List[str]] = None) -> Dict[str, Any]:
         """Get database schema information."""

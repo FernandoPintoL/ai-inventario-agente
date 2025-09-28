@@ -137,6 +137,17 @@ Convierte una consulta en lenguaje natural a SQL, la ejecuta y retorna una respu
   "answer": "string - Respuesta en lenguaje natural",
   "sql_query": "string - Consulta SQL generada",
   "raw_data": "array - Datos crudos de la base de datos",
+  "structured_data": {
+    "columns": [
+      {
+        "name": "string - Nombre de la columna",
+        "type": "string - Tipo de dato (string, number, boolean, date)",
+        "nullable": "boolean - Si permite valores nulos"
+      }
+    ],
+    "rows": "array - Datos organizados en filas como arrays",
+    "total_rows": "integer - Número total de filas"
+  },
   "execution_time": "float - Tiempo de ejecución en segundos",
   "timestamp": "string - Timestamp ISO 8601",
   "table_info": "string - Información del esquema (si se solicita)"
@@ -451,9 +462,207 @@ curl -X GET "http://localhost:8000/api/v1/tables"
     {"categoria": "Deportes", "cantidad": 15},
     {"categoria": "Libros", "cantidad": 12}
   ],
+  "structured_data": {
+    "columns": [
+      {"name": "categoria", "type": "string", "nullable": false},
+      {"name": "cantidad", "type": "number", "nullable": false}
+    ],
+    "rows": [
+      ["Electrónicos", 45],
+      ["Ropa", 32],
+      ["Hogar", 28],
+      ["Deportes", 15],
+      ["Libros", 12]
+    ],
+    "total_rows": 5
+  },
   "execution_time": 0.234,
   "timestamp": "2024-09-27T20:30:45.123Z",
   "table_info": null
+}
+```
+
+---
+
+## 📊 Datos Estructurados para Reportes
+
+### Formato `structured_data`
+
+El sistema ahora incluye el campo `structured_data` en todas las respuestas exitosas, diseñado específicamente para facilitar la generación de reportes y tablas en sistemas externos.
+
+#### Estructura
+
+```json
+{
+  "structured_data": {
+    "columns": [
+      {
+        "name": "nombre_columna",
+        "type": "string|number|boolean|date",
+        "nullable": true|false
+      }
+    ],
+    "rows": [
+      ["valor1", "valor2", "valor3"],
+      ["valor4", "valor5", "valor6"]
+    ],
+    "total_rows": 123
+  }
+}
+```
+
+#### Tipos de Datos Soportados
+
+- **`string`**: Texto, nombres, descripciones
+- **`number`**: Enteros, decimales, cantidades, precios
+- **`boolean`**: Valores verdadero/falso, estados activos
+- **`date`**: Fechas y timestamps (formato ISO 8601)
+
+#### Ventajas para Sistemas Externos
+
+1. **Generación de Tablas**: Los datos están organizados en columnas y filas para fácil renderizado
+2. **Exportación a Excel/CSV**: Formato compatible con herramientas de exportación
+3. **Tipado de Datos**: Los sistemas externos conocen el tipo de cada columna
+4. **Metadatos**: Información sobre nullabilidad y total de filas
+
+### Ejemplo de Integración para Reportes
+
+#### JavaScript - Generar Tabla HTML
+
+```javascript
+function generateTable(structuredData) {
+  if (!structuredData) return '<p>No hay datos disponibles</p>';
+
+  const { columns, rows } = structuredData;
+
+  let html = '<table class="table table-striped"><thead><tr>';
+
+  // Headers
+  columns.forEach(col => {
+    html += `<th>${col.name}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  // Rows
+  rows.forEach(row => {
+    html += '<tr>';
+    row.forEach((value, index) => {
+      const column = columns[index];
+      const formattedValue = formatValue(value, column.type);
+      html += `<td>${formattedValue}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+function formatValue(value, type) {
+  if (value === null) return '<em>null</em>';
+
+  switch(type) {
+    case 'number':
+      return typeof value === 'number' ? value.toLocaleString() : value;
+    case 'date':
+      return new Date(value).toLocaleDateString();
+    case 'boolean':
+      return value ? '✓' : '✗';
+    default:
+      return value;
+  }
+}
+```
+
+#### Python - Exportar a Excel
+
+```python
+import pandas as pd
+from datetime import datetime
+
+def export_to_excel(response_data, filename="reporte.xlsx"):
+    """Convierte structured_data a archivo Excel."""
+    structured_data = response_data.get('structured_data')
+
+    if not structured_data:
+        print("No hay datos estructurados disponibles")
+        return
+
+    # Crear DataFrame
+    columns = [col['name'] for col in structured_data['columns']]
+    df = pd.DataFrame(structured_data['rows'], columns=columns)
+
+    # Aplicar tipos de datos
+    for col_info in structured_data['columns']:
+        col_name = col_info['name']
+        col_type = col_info['type']
+
+        if col_type == 'number':
+            df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
+        elif col_type == 'date':
+            df[col_name] = pd.to_datetime(df[col_name], errors='coerce')
+        elif col_type == 'boolean':
+            df[col_name] = df[col_name].astype(bool)
+
+    # Exportar a Excel
+    df.to_excel(filename, index=False)
+    print(f"Reporte exportado a {filename}")
+    return df
+
+# Ejemplo de uso
+response = requests.post('http://localhost:8000/api/v1/query',
+                        json={"human_query": "¿Cuáles son los productos más vendidos?"})
+data = response.json()
+df = export_to_excel(data, "productos_mas_vendidos.xlsx")
+```
+
+#### C# - Generar DataTable
+
+```csharp
+using System;
+using System.Data;
+using Newtonsoft.Json.Linq;
+
+public DataTable ConvertToDataTable(JObject responseData)
+{
+    var structuredData = responseData["structured_data"];
+    if (structuredData == null) return new DataTable();
+
+    var dataTable = new DataTable();
+
+    // Agregar columnas
+    foreach (var column in structuredData["columns"])
+    {
+        var columnName = column["name"].ToString();
+        var columnType = column["type"].ToString();
+
+        Type dataType = columnType switch
+        {
+            "number" => typeof(decimal),
+            "boolean" => typeof(bool),
+            "date" => typeof(DateTime),
+            _ => typeof(string)
+        };
+
+        dataTable.Columns.Add(columnName, dataType);
+    }
+
+    // Agregar filas
+    foreach (var row in structuredData["rows"])
+    {
+        var dataRow = dataTable.NewRow();
+        for (int i = 0; i < row.Count(); i++)
+        {
+            var value = row[i];
+            if (value.Type != JTokenType.Null)
+            {
+                dataRow[i] = Convert.ChangeType(value, dataTable.Columns[i].DataType);
+            }
+        }
+        dataTable.Rows.Add(dataRow);
+    }
+
+    return dataTable;
 }
 ```
 
