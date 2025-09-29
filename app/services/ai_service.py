@@ -43,8 +43,9 @@ class AIService:
                 model=settings.claude_model,
                 api_key=settings.claude_api_key,
                 temperature=0,  # For consistent SQL generation
-                max_tokens=2000,
-                timeout=30
+                max_tokens=500,  # Reduced for faster responses - SQL queries are typically short
+                timeout=15,  # 15 second timeout for faster failures
+                max_retries=1  # Reduce retries for faster response
             )
             logger.info(f"Initialized LLM with model: {settings.claude_model}")
             self._claude_available = True
@@ -96,7 +97,7 @@ class AIService:
                 raise LLMException(f"Failed to initialize chains: {e}")
 
     async def generate_sql_query(self, human_query: str) -> str:
-        """Generate SQL query from natural language."""
+        """Genera una consulta SQL a partir de lenguaje natural."""
         # Use fallback service if Claude is not available
         if not self._claude_available and self._mock_service:
             logger.info("Using fallback AI service for SQL generation")
@@ -116,11 +117,20 @@ class AIService:
             Pregunta: {human_query}
 
             Consideraciones importantes:
-            - Solo usa SELECT statements
-            - No uses funciones o sintaxis específica de PostgreSQL a menos que sea necesario
-            - Incluye JOIN apropiados cuando sea necesario
-            - Usa aliases para claridad
-            - Limita resultados si es apropiado (LIMIT)
+            - Usa SELECT para consultas de lectura
+            - Usa INSERT para crear nuevos registros
+            - Usa UPDATE para modificar registros existentes
+            - Usa DELETE para eliminar registros
+            - NUNCA uses DROP, TRUNCATE, ALTER TABLE o comandos destructivos de esquema
+            - Incluye WHERE clauses apropiadas en UPDATE y DELETE para evitar modificaciones masivas accidentales
+            - Para INSERT, asegúrate de incluir todos los campos requeridos
+            - Usa sintaxis SQL estándar compatible con PostgreSQL
+            - Incluye JOIN apropiados cuando sea necesario para SELECT
+            - Limita resultados en SELECT si es apropiado (LIMIT)
+            - IMPORTANTE: Verifica que uses los nombres EXACTOS de las tablas de la base de datos
+            - Si el usuario dice "categoria", usa la tabla "categorias" (plural)
+            - Si el usuario dice "producto", usa la tabla "productos" (plural)
+            - Revisa el esquema de la base de datos para usar nombres correctos
             """
 
             response = await self._query_chain.ainvoke({"question": enhanced_query})
@@ -158,8 +168,10 @@ class AIService:
             "Query:",
             "```sql",
             "```",
-            "SELECT"  # Direct SQL start
         ]
+
+        # SQL statement starters
+        sql_starters = ["SELECT", "INSERT", "UPDATE", "DELETE"]
 
         # Try to find SQL in the response
         lines = sql_query.split('\n')
@@ -179,10 +191,10 @@ class AIService:
                     continue
 
             # Check if this line contains SQL markers
-            if any(marker.upper() in line.upper() for marker in sql_markers[:5]):  # Don't include "SELECT" here
+            if any(marker.upper() in line.upper() for marker in sql_markers):
                 found_sql = True
                 # If the line contains SQLQuery: or similar, extract what comes after
-                for marker in sql_markers[:5]:
+                for marker in sql_markers:
                     if marker.upper() in line.upper():
                         # Find the marker and take everything after it
                         marker_pos = line.upper().find(marker.upper())
@@ -192,13 +204,13 @@ class AIService:
 
                 if line:  # Only add if there's content after removing marker
                     sql_lines.append(line)
-            elif found_sql and line.upper().startswith('SELECT'):
-                # We found a SELECT statement
+            elif found_sql and any(line.upper().startswith(starter) for starter in sql_starters):
+                # We found a SQL statement
                 sql_lines.append(line)
             elif found_sql:
                 # We're in SQL block, add the line (could be continuation)
                 sql_lines.append(line)
-            elif line.upper().startswith('SELECT'):
+            elif any(line.upper().startswith(starter) for starter in sql_starters):
                 # Direct SQL start
                 found_sql = True
                 sql_lines.append(line)
@@ -220,9 +232,18 @@ class AIService:
         if not sql_query:
             raise SQLGenerationException("Generated SQL query is empty")
 
-        # Security check - ensure it's a SELECT statement
-        if not sql_query.upper().startswith('SELECT'):
-            raise SQLGenerationException("Generated query is not a SELECT statement")
+        # Security check - ensure it's a valid SQL statement
+        sql_upper = sql_query.upper().strip()
+        allowed_statements = ['SELECT', 'INSERT', 'UPDATE', 'DELETE']
+
+        if not any(sql_upper.startswith(stmt) for stmt in allowed_statements):
+            raise SQLGenerationException("Generated query is not a valid SQL statement")
+
+        # Prevent dangerous operations
+        dangerous_keywords = ['DROP', 'TRUNCATE', 'ALTER TABLE', 'DROP TABLE', 'GRANT', 'REVOKE']
+        for keyword in dangerous_keywords:
+            if keyword in sql_upper:
+                raise SQLGenerationException(f"Generated query contains dangerous keyword: {keyword}")
 
         return sql_query
 
@@ -231,7 +252,7 @@ class AIService:
         result: List[Dict[str, Any]],
         human_query: str
     ) -> str:
-        """Build natural language answer from SQL results."""
+        """Construye una respuesta en lenguaje natural a partir de los resultados SQL."""
         # Use fallback service if Claude is not available
         if not self._claude_available and self._mock_service:
             logger.info("Using fallback AI service for answer building")

@@ -103,7 +103,7 @@ python main.py
 
 ### Pruebas de Conexión
 ```bash
-python scripts/test_connection.py
+    python scripts/test_connection.py
 ```
 
 ---

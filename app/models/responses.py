@@ -71,7 +71,8 @@ class QueryResponse(BaseModel):
                     ],
                     "total_rows": 3
                 },
-                "execution_time": 0.045,
+                "execution_time":
+                    0.045,
                 "timestamp": "2024-01-15T10:30:00Z"
             }
         }

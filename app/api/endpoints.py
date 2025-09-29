@@ -6,7 +6,6 @@ from app.models.responses import QueryResponse, ErrorResponse
 from app.services import AIService, QueryService
 from app.database import db_manager
 from app.core.exceptions import (
-    IntelligentAgentException,
     DatabaseException,
     SQLGenerationException,
     LLMException,
@@ -30,14 +29,14 @@ def get_query_service(ai_service: AIService = Depends(get_ai_service)) -> QueryS
     "/query",
     response_model=QueryResponse,
     status_code=status.HTTP_200_OK,
-    summary="Process Natural Language Query",
-    description="Convert a natural language query to SQL, execute it, and return a natural language response"
+    summary="Procesar consulta en lenguaje natural",
+    description="Convierte una consulta en lenguaje natural a SQL, la ejecuta y devuelve una respuesta en lenguaje natural"
 )
 async def process_query(
     request: HumanQueryRequest,
     query_service: QueryService = Depends(get_query_service)
 ) -> QueryResponse:
-    """Process a natural language query and return results."""
+    """Procesa una consulta en lenguaje natural y devuelve los resultados."""
     try:
         logger.info(f"Received query request: {request.human_query[:100]}...")
         response = await query_service.process_human_query(request)

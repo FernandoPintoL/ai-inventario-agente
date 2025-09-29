@@ -3,7 +3,7 @@ from typing import Optional
 
 
 class HumanQueryRequest(BaseModel):
-    """Request model for human language queries."""
+    """Modelo de solicitud para consultas en lenguaje natural."""
 
     human_query: str = Field(
         ...,
@@ -31,8 +31,8 @@ class HumanQueryRequest(BaseModel):
         if not v:
             raise ValueError("Query cannot be empty")
 
-        # Basic security checks - prevent certain dangerous SQL keywords
-        dangerous_keywords = ['drop', 'delete', 'truncate', 'alter', 'create', 'insert', 'update']
+        # Basic security checks - prevent only destructive operations
+        dangerous_keywords = ['drop', 'truncate', 'alter table', 'drop table', 'grant', 'revoke']
         query_lower = v.lower()
 
         for keyword in dangerous_keywords:

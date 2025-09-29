@@ -162,7 +162,6 @@ def main():
 
         # Configure uvicorn based on environment
         uvicorn_config = {
-            "app": app,
             "host": settings.host,
             "port": settings.port,
             "log_level": settings.log_level.lower(),
@@ -172,12 +171,15 @@ def main():
         # Development-specific settings
         if settings.is_development:
             uvicorn_config.update({
+                "app": "main:create_application",
+                "factory": True,
                 "reload": True,  # Auto-reload on code changes
                 "reload_dirs": ["app", "config"],  # Watch these directories
             })
         else:
             # Production-specific settings
             uvicorn_config.update({
+                "app": app,
                 "reload": False,
                 "workers": 1,  # Railway handles scaling
                 "loop": "uvloop",  # Better performance
