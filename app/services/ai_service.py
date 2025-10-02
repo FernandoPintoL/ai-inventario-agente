@@ -44,7 +44,7 @@ class AIService:
                 api_key=settings.claude_api_key,
                 temperature=0,  # For consistent SQL generation
                 max_tokens=500,  # Reduced for faster responses - SQL queries are typically short
-                timeout=47,  # 15 second timeout for faster failures
+                timeout=180,  # 15 second timeout for faster failures
                 max_retries=1  # Reduce retries for faster response
             )
             logger.info(f"Initialized LLM with model: {settings.claude_model}")
