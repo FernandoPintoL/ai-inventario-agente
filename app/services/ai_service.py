@@ -9,6 +9,7 @@ from app.core.exceptions import LLMException, SQLGenerationException
 from app.core.logging import get_logger
 from app.database import DatabaseManager
 from app.services.mock_ai_service import MockAIService
+from app.services.text_normalizer import get_text_normalizer
 
 logger = get_logger("ai_service")
 
@@ -23,8 +24,20 @@ class AIService:
         self._answer_chain = None
         self._claude_available = False
         self._mock_service = None
+        self._text_normalizer = None
         self._initialize_llm()
         self._initialize_chains()
+
+        # Initialize text normalizer for query optimization
+        try:
+            self._text_normalizer = get_text_normalizer()
+            logger.info("Initialized Text Normalizer for query optimization")
+            stats = self._text_normalizer.get_statistics()
+            logger.info(f"Normalizer loaded: {stats['total_tables']} tables, "
+                       f"{stats['total_table_synonyms']} synonyms")
+        except Exception as e:
+            logger.warning(f"Could not initialize Text Normalizer: {e}")
+            logger.warning("Query normalization will be limited")
 
         # Initialize fallback service if needed
         if not self._claude_available and settings.claude_fallback_enabled:
@@ -44,8 +57,8 @@ class AIService:
                 api_key=settings.claude_api_key,
                 temperature=0,  # For consistent SQL generation
                 max_tokens=500,  # Reduced for faster responses - SQL queries are typically short
-                timeout=180,  # 15 second timeout for faster failures
-                max_retries=1  # Reduce retries for faster response
+                timeout=30,  # 30 second timeout for faster failures
+                max_retries=2  # 2 retries for better reliability
             )
             logger.info(f"Initialized LLM with model: {settings.claude_model}")
             self._claude_available = True
@@ -58,7 +71,7 @@ class AIService:
                 raise LLMException(f"Failed to initialize LLM: {e}")
 
     def _initialize_chains(self):
-        """Initialize Langchain chains for SQL generation and answer formatting."""
+        """Inicializa las cadenas de Langchain para la generación de SQL y el formato de respuestas."""
         if not self._claude_available:
             logger.info("Skipping chain initialization - Claude not available")
             return
@@ -98,41 +111,43 @@ class AIService:
 
     async def generate_sql_query(self, human_query: str) -> str:
         """Genera una consulta SQL a partir de lenguaje natural."""
-        # Use fallback service if Claude is not available
-        if not self._claude_available and self._mock_service:
-            logger.info("Using fallback AI service for SQL generation")
-            return await self._mock_service.generate_sql_query(human_query)
-
         if not self._claude_available:
             raise SQLGenerationException("Claude not available and fallback disabled")
-
         try:
             start_time = time.time()
 
-            # Enhanced prompt for better SQL generation
-            enhanced_query = f"""
-            Genera una consulta SQL segura y eficiente para la siguiente pregunta en español.
-            La base de datos contiene información de inventario y productos.
+            # PASO 1: Normalizar la consulta del usuario usando el diccionario
+            normalized_query = human_query
+            if self._text_normalizer:
+                try:
+                    normalized_query = self._text_normalizer.normalize_query(
+                        human_query,
+                        enable_fuzzy=True
+                    )
+                    if normalized_query != human_query:
+                        logger.info(f"Query normalized: '{human_query[:50]}...' -> '{normalized_query[:50]}...'")
+                except Exception as e:
+                    logger.warning(f"Text normalization failed: {e}, using original query")
+                    normalized_query = human_query
 
-            Pregunta: {human_query}
+            # PASO 2: Obtener lista de tablas disponibles para el contexto (formato compacto)
+            available_tables = self.get_available_tables()
+            tables_compact = ", ".join(available_tables)  # Formato compacto para ahorrar tokens
 
-            Consideraciones importantes:
-            - Usa SELECT para consultas de lectura
-            - Usa INSERT para crear nuevos registros
-            - Usa UPDATE para modificar registros existentes
-            - Usa DELETE para eliminar registros
-            - NUNCA uses DROP, TRUNCATE, ALTER TABLE o comandos destructivos de esquema
-            - Incluye WHERE clauses apropiadas en UPDATE y DELETE para evitar modificaciones masivas accidentales
-            - Para INSERT, asegúrate de incluir todos los campos requeridos
-            - Usa sintaxis SQL estándar compatible con PostgreSQL
-            - Incluye JOIN apropiados cuando sea necesario para SELECT
-            - Limita resultados en SELECT si es apropiado (LIMIT)
-            - IMPORTANTE: Verifica que uses los nombres EXACTOS de las tablas de la base de datos
-            - Si el usuario dice "categoria", usa la tabla "categorias" (plural)
-            - Si el usuario dice "producto", usa la tabla "productos" (plural)
-            - Revisa el esquema de la base de datos para usar nombres correctos
-            """
+            # PASO 3: Enhanced prompt OPTIMIZADO (reducido y específico)
+            enhanced_query = f"""Genera SOLO la consulta SQL, sin explicaciones.
 
+TABLAS: {tables_compact}
+
+Pregunta: {normalized_query}
+
+IMPORTANTE:
+- Responde SOLO con el SQL, nada más
+- Usa SELECT/INSERT/UPDATE/DELETE
+- PostgreSQL syntax
+- Nombres exactos de tablas
+- No agregues comentarios ni explicaciones
+"""
             response = await self._query_chain.ainvoke({"question": enhanced_query})
 
             # Clean the response
@@ -222,11 +237,21 @@ class AIService:
         # Additional cleanup
         sql_query = sql_query.strip()
 
+        # CRÍTICO: Eliminar explicaciones que Claude agrega después del SQL
+        # Buscar donde termina el SQL (punto y coma) y cortar el resto
+        if ';' in sql_query:
+            # Tomar solo hasta el primer punto y coma
+            sql_query = sql_query.split(';')[0].strip() + ';'
+
         # Remove trailing punctuation that might interfere
         if sql_query.endswith('```'):
             sql_query = sql_query[:-3].strip()
-        if sql_query.endswith(';'):
-            sql_query = sql_query[:-1].strip()
+
+        # Asegurar que termina con punto y coma
+        if not sql_query.endswith(';'):
+            sql_query = sql_query.strip()
+        else:
+            sql_query = sql_query[:-1].strip()  # Quitar el ; para validación
 
         # Basic validation
         if not sql_query:
@@ -257,7 +282,6 @@ class AIService:
         if not self._claude_available and self._mock_service:
             logger.info("Using fallback AI service for answer building")
             return await self._mock_service.build_answer(result, human_query)
-
         if not self._claude_available:
             # Basic fallback formatting if no mock service
             if not result:
@@ -267,10 +291,8 @@ class AIService:
                 return f"Resultado: {value}"
             else:
                 return f"Se encontraron {len(result)} resultados para tu consulta."
-
         try:
             start_time = time.time()
-
             # Format results for better LLM processing
             if not result:
                 formatted_result = "No se encontraron resultados."
@@ -284,15 +306,12 @@ class AIService:
                 formatted_result = str(limited_result)
                 if len(result) > 20:
                     formatted_result += f"\n... y {len(result) - 20} resultados más"
-
             response = await self._answer_chain.ainvoke({
                 "human_query": human_query,
                 "result": formatted_result
             })
-
             execution_time = time.time() - start_time
             logger.info(f"Built natural language answer in {execution_time:.3f}s")
-
             return response.content if hasattr(response, 'content') else str(response)
 
         except Exception as e:

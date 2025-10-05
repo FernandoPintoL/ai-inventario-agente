@@ -1,0 +1,243 @@
+{
+  "table_synonyms": {
+    "almacenes": {
+      "singular": ["almacen", "almacén"],
+      "synonyms": [
+        "bodega", "bodegas",
+        "deposito", "depositos", "depósito", "depósitos",
+        "warehouse", "warehouses"
+      ],
+      "common_errors": ["almacn", "almacene", "alamcen"]
+    },
+    "categorias": {
+      "singular": ["categoria", "categoría"],
+      "synonyms": [
+        "tipo", "tipos",
+        "clase", "clases",
+        "clasificacion", "clasificación", "clasificaciones",
+        "category", "categories"
+      ],
+      "common_errors": ["categria", "catgoria", "categoriaa"]
+    },
+    "productos": {
+      "singular": ["producto"],
+      "synonyms": [
+        "articulo", "artículos", "articulos",
+        "item", "items",
+        "mercancia", "mercancía", "mercancias", "mercancías",
+        "product", "products",
+        "inventario de productos"
+      ],
+      "common_errors": ["porducto", "prodcuto", "producto"]
+    },
+    "marcas": {
+      "singular": ["marca"],
+      "synonyms": [
+        "fabricante", "fabricantes",
+        "brand", "brands",
+        "proveedor marca",
+        "etiqueta comercial"
+      ],
+      "common_errors": ["maca", "mrca"]
+    },
+    "codigos_barra": {
+      "singular": ["codigo_barra", "código_barra"],
+      "synonyms": [
+        "barcode", "barcodes",
+        "codigo", "código", "codigos", "códigos",
+        "codigo de barras", "código de barras",
+        "etiqueta", "etiquetas",
+        "ean", "upc"
+      ],
+      "common_errors": ["codigo_barras", "codigobarra"]
+    },
+    "estado_mermas": {
+      "singular": ["estado_merma"],
+      "synonyms": [
+        "estado de merma", "estados de merma",
+        "estado merma", "estados merma",
+        "estatus merma", "estatus de merma"
+      ],
+      "common_errors": ["estadomerma", "estado_merma"]
+    },
+    "imagenes_producto": {
+      "singular": ["imagen_producto"],
+      "synonyms": [
+        "imagen", "imagenes", "imágenes",
+        "foto", "fotos",
+        "fotografia", "fotografía", "fotografias", "fotografías",
+        "imagen de producto", "imagenes de productos",
+        "picture", "pictures"
+      ],
+      "common_errors": ["imgen", "imagn"]
+    },
+    "unidades_medida": {
+      "singular": ["unidad_medida"],
+      "synonyms": [
+        "unidad", "unidades",
+        "medida", "medidas",
+        "unidad de medida",
+        "um", "uom",
+        "unit", "units"
+      ],
+      "common_errors": ["unidadmedida", "unidad_media"]
+    },
+    "stock_productos": {
+      "singular": ["stock_producto"],
+      "synonyms": [
+        "stock", "stocks",
+        "inventario", "inventarios",
+        "existencias", "existencia",
+        "disponibilidad",
+        "disponible",
+        "cantidad en stock",
+        "inventory"
+      ],
+      "common_errors": ["stok", "stockproducto"]
+    },
+    "movimientos_inventario": {
+      "singular": ["movimiento_inventario"],
+      "synonyms": [
+        "movimiento", "movimientos",
+        "transaccion", "transacción", "transacciones",
+        "historial", "historiales",
+        "movimiento de inventario",
+        "movimiento de stock",
+        "kardex",
+        "movement", "movements"
+      ],
+      "common_errors": ["movimientoinventario", "movimiento_inventrio"]
+    },
+    "tipo_mermas": {
+      "singular": ["tipo_merma"],
+      "synonyms": [
+        "merma", "mermas",
+        "tipo de merma", "tipos de merma",
+        "perdida", "pérdida", "perdidas", "pérdidas",
+        "desperdicio", "desperdicios",
+        "waste", "loss"
+      ],
+      "common_errors": ["tipomerma", "tipo_merma"]
+    },
+    "tipos_ajuste_inventario": {
+      "singular": ["tipo_ajuste_inventario"],
+      "synonyms": [
+        "ajuste", "ajustes",
+        "tipo ajuste", "tipos ajuste",
+        "ajuste de inventario", "ajustes de inventario",
+        "correccion", "corrección", "correcciones",
+        "adjustment", "adjustments"
+      ],
+      "common_errors": ["tipoajuste", "tipo_ajuste"]
+    },
+    "transferencia_inventarios": {
+      "singular": ["transferencia_inventario"],
+      "synonyms": [
+        "transferencia", "transferencias",
+        "traslado", "traslados",
+        "movimiento entre almacenes",
+        "transfer", "transfers"
+      ],
+      "common_errors": ["transferenciainventario", "transferencia_inventrio"]
+    },
+    "detalle_transferencia_inventarios": {
+      "singular": ["detalle_transferencia_inventario"],
+      "synonyms": [
+        "detalle transferencia", "detalles transferencia",
+        "linea transferencia", "línea transferencia",
+        "item transferencia", "items transferencia",
+        "detalle de transferencia"
+      ],
+      "common_errors": ["detalletransferencia", "detalle_transferencia"]
+    },
+    "configuracion_ganancias": {
+      "singular": ["configuracion_ganancia"],
+      "synonyms": [
+        "configuracion", "configuración", "configuraciones",
+        "ganancia", "ganancias",
+        "margen", "margenes", "márgenes",
+        "utilidad", "utilidades",
+        "config ganancia", "config de ganancias",
+        "profit configuration"
+      ],
+      "common_errors": ["configuracionganancia", "configuracion_ganncia"]
+    },
+    "precios_producto": {
+      "singular": ["precio_producto"],
+      "synonyms": [
+        "precio", "precios",
+        "costo", "costos",
+        "valor", "valores",
+        "precio de venta",
+        "tarifa", "tarifas",
+        "price", "prices"
+      ],
+      "common_errors": ["precioproducto", "precio_prodcuto"]
+    },
+    "historial_precios": {
+      "singular": ["historial_precio"],
+      "synonyms": [
+        "historial", "historiales",
+        "historial de precio", "historial de precios",
+        "registro precio", "registros precio",
+        "cambio precio", "cambios precio",
+        "price history"
+      ],
+      "common_errors": ["historilprecios", "historial_precio"]
+    }
+  },
+
+  "column_synonyms": {
+    "nombre": [
+      "name", "titulo", "título",
+      "denominacion", "denominación",
+      "descripcion corta"
+    ],
+    "descripcion": [
+      "description", "detalle", "detalles",
+      "info", "informacion", "información",
+      "observacion", "observación"
+    ],
+    "cantidad": [
+      "qty", "quantity", "total",
+      "numero", "número", "cant",
+      "stock", "existencia"
+    ],
+    "precio": [
+      "price", "costo", "valor",
+      "monto", "importe", "tarifa"
+    ],
+    "activo": [
+      "active", "estado", "status",
+      "habilitado", "vigente", "enabled"
+    ],
+    "fecha_creacion": [
+      "created_at", "fecha_alta", "creado_en",
+      "fecha_registro", "created", "registration_date"
+    ],
+    "fecha_actualizacion": [
+      "updated_at", "modificado_en", "actualizado_en",
+      "fecha_modificacion", "updated", "modification_date"
+    ],
+    "usuario": [
+      "user", "user_id", "usuario_id",
+      "responsable", "creador", "autor"
+    ],
+    "direccion": [
+      "address", "ubicacion", "ubicación",
+      "localizacion", "localización", "domicilio"
+    ],
+    "telefono": [
+      "phone", "tel", "celular",
+      "movil", "móvil", "contacto"
+    ]
+  },
+
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-10-04",
+    "description": "Diccionario de sinónimos para normalización de consultas en lenguaje natural",
+    "total_tables": 17,
+    "language": "es-ES"
+  }
+}
