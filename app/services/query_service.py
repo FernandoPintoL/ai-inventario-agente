@@ -32,7 +32,7 @@ class QueryService:
             logger.info(f"Generated SQL: {sql_query}")
 
             # Paso 2: Aplicar límite si se solicita (solo para SELECT)
-            if request.limit_results and sql_query.upper().strip().startswith('SELECT'):
+            if request.limit_results is not None and sql_query.upper().strip().startswith('SELECT'):
                 sql_query = self._apply_limit_to_query(sql_query, request.limit_results)
 
             # Paso 3: Determinar el tipo de operación y ejecutar
