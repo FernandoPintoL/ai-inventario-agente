@@ -302,10 +302,10 @@ IMPORTANTE:
                 formatted_result = f"Valor: {value}"
             else:
                 # Multiple results - limit for LLM context
-                limited_result = result[:20]  # Limit to first 20 results
+                limited_result = result[:100]  # Limit to first 20 results
                 formatted_result = str(limited_result)
-                if len(result) > 20:
-                    formatted_result += f"\n... y {len(result) - 20} resultados más"
+                if len(result) > 100:
+                    formatted_result += f"\n... y {len(result) - 100} resultados más"
             response = await self._answer_chain.ainvoke({
                 "human_query": human_query,
                 "result": formatted_result
