@@ -30,31 +30,44 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger = setup_logging()
+    logger.info("="*70)
     logger.info("Starting Intelligent Agent application...")
+    logger.info(f"Environment: {settings.environment}")
+    logger.info(f"Port: {settings.port}")
+    logger.info(f"Database Host: {settings.db_host}")
+    logger.info("="*70)
 
+    # Test database connection (non-blocking)
     try:
-        # Test database connection
+        logger.info("Testing database connection...")
         tables = db_manager.langchain_db.get_usable_table_names()
-        logger.info(f"Database connected successfully. Available tables: {len(tables)}")
+        logger.info(f"✅ Database connected successfully. Available tables: {len(tables)}")
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
-        raise
+        logger.warning(f"⚠️  Database connection failed: {e}")
+        logger.warning("Application will start anyway. Database features may be limited.")
+        # NO raise - permitir que la app inicie sin DB
 
-    # Iniciar scheduler de alertas
+    # Iniciar scheduler de alertas (completamente opcional)
     try:
+        logger.info("Starting stock monitor scheduler...")
         from app.scheduler import stock_scheduler
         stock_scheduler.start()
-        logger.info("Stock monitor scheduler started successfully")
+        logger.info("✅ Stock monitor scheduler started successfully")
     except Exception as e:
-        logger.error(f"Failed to start stock monitor scheduler: {e}")
-        # No raise - el scheduler es opcional, la API puede funcionar sin él
+        logger.warning(f"⚠️  Failed to start stock monitor scheduler: {e}")
+        logger.warning("Scheduler disabled. Manual alerts only.")
+        # No raise - el scheduler es opcional
 
-    logger.info("Application startup complete")
+    logger.info("="*70)
+    logger.info("✅ Application startup complete - Ready to accept requests")
+    logger.info("="*70)
 
     yield
 
     # Shutdown
+    logger.info("="*70)
     logger.info("Shutting down Intelligent Agent application...")
+    logger.info("="*70)
 
     # Detener scheduler
     try:
@@ -62,9 +75,14 @@ async def lifespan(app: FastAPI):
         stock_scheduler.stop()
         logger.info("Stock monitor scheduler stopped")
     except Exception as e:
-        logger.error(f"Error stopping scheduler: {e}")
+        logger.warning(f"Error stopping scheduler: {e}")
 
-    db_manager.close()
+    try:
+        db_manager.close()
+        logger.info("Database connection closed")
+    except Exception as e:
+        logger.warning(f"Error closing database: {e}")
+
     logger.info("Application shutdown complete")
 
 

@@ -158,7 +158,10 @@ def load_settings() -> Settings:
     if os.getenv("RAILWAY_ENVIRONMENT"):
         os.environ.setdefault("ENVIRONMENT", "production")
         os.environ.setdefault("HOST", "0.0.0.0")
-        os.environ.setdefault("PORT", "8080")
+
+        # Railway provides PORT - use it if available
+        if not os.getenv("PORT"):
+            os.environ["PORT"] = "8080"
 
         # Set Railway-specific variables
         if railway_env := os.getenv("RAILWAY_ENVIRONMENT_NAME"):
