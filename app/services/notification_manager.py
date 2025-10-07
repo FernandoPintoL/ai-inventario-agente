@@ -34,15 +34,18 @@ class NotificationManager:
         self.webhook_token = settings.webhook_token
         self.webhook_enabled = settings.webhook_enabled
 
+        # En producción, priorizar webhook sobre email
+        self.smtp_enabled = bool(self.to_emails and self.smtp_host and self.smtp_user)
+
     def enviar_alertas(self, alertas: AlertaAgrupada) -> bool:
         """
-        Envía alertas agrupadas por email
+        Envía alertas por webhook y/o email
 
         Args:
             alertas: Alertas agrupadas para enviar
 
         Returns:
-            True si se envió correctamente, False en caso contrario
+            True si se envió correctamente por al menos un canal
         """
         if not alertas.tiene_alertas:
             logger.info("No hay alertas para enviar")
@@ -54,25 +57,39 @@ class NotificationManager:
                 f"{len(alertas.medias)} medias, {len(alertas.bajas)} bajas"
             )
 
-            # Generar contenido del email
+            # Generar contenido
             asunto = self._generar_asunto(alertas)
             contenido_html = self._generar_contenido_html(alertas)
             contenido_texto = self._generar_contenido_texto(alertas)
 
-            # Enviar email
-            exito = self._enviar_email(asunto, contenido_html, contenido_texto)
+            # Contadores de éxito
+            email_enviado = False
+            webhook_enviado = False
 
-            if exito:
-                # Registrar alertas enviadas
+            # Intentar webhook primero (más confiable en Railway)
+            if self.webhook_enabled:
+                webhook_enviado = self._enviar_webhook(alertas, asunto)
+                if webhook_enviado:
+                    logger.info("✅ Notificación webhook enviada correctamente")
+
+            # Intentar email solo si está habilitado Y (webhook falló O no está habilitado)
+            if self.smtp_enabled:
+                if not webhook_enviado or settings.is_development:
+                    logger.info("Intentando envío por email...")
+                    email_enviado = self._enviar_email(asunto, contenido_html, contenido_texto)
+                    if email_enviado:
+                        logger.info("✅ Email enviado correctamente")
+                else:
+                    logger.info("Email omitido (webhook exitoso)")
+
+            # Registrar alertas si al menos un canal funcionó
+            if webhook_enviado or email_enviado:
                 self._registrar_alertas_enviadas(alertas)
-                logger.info("Alertas enviadas y registradas correctamente")
-
-                # Enviar webhook a Laravel (si está habilitado)
-                self._enviar_webhook(alertas, asunto)
+                logger.info(f"Alertas registradas (webhook: {webhook_enviado}, email: {email_enviado})")
+                return True
             else:
-                logger.error("Error al enviar alertas")
-
-            return exito
+                logger.error("❌ Todos los canales de notificación fallaron")
+                return False
 
         except Exception as e:
             logger.error(f"Error al enviar alertas: {e}")
@@ -281,10 +298,11 @@ Total de alertas: {alertas.total_alertas}
             mensaje.attach(parte_texto)
             mensaje.attach(parte_html)
 
-            # Enviar via SMTP con timeout
-            logger.info(f"Conectando a {self.smtp_host}:{self.smtp_port}")
+            # Enviar via SMTP con timeout corto (10s en prod, Railway bloquea SMTP)
+            timeout = 10 if settings.is_production else 30
+            logger.info(f"Conectando a {self.smtp_host}:{self.smtp_port} (timeout: {timeout}s)")
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=timeout) as server:
                 server.starttls()  # Activar TLS
                 server.login(self.smtp_user, self.smtp_password)
                 server.send_message(mensaje)
@@ -293,7 +311,7 @@ Total de alertas: {alertas.total_alertas}
             return True
 
         except Exception as e:
-            logger.error(f"Error al enviar email: {e}")
+            logger.warning(f"Error al enviar email (normal en Railway - usa webhook): {e}")
             return False
 
     def _registrar_alertas_enviadas(self, alertas: AlertaAgrupada):
