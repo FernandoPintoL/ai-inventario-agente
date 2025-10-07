@@ -40,12 +40,30 @@ async def lifespan(app: FastAPI):
         logger.error(f"Database connection failed: {e}")
         raise
 
+    # Iniciar scheduler de alertas
+    try:
+        from app.scheduler import stock_scheduler
+        stock_scheduler.start()
+        logger.info("Stock monitor scheduler started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start stock monitor scheduler: {e}")
+        # No raise - el scheduler es opcional, la API puede funcionar sin él
+
     logger.info("Application startup complete")
 
     yield
 
     # Shutdown
     logger.info("Shutting down Intelligent Agent application...")
+
+    # Detener scheduler
+    try:
+        from app.scheduler import stock_scheduler
+        stock_scheduler.stop()
+        logger.info("Stock monitor scheduler stopped")
+    except Exception as e:
+        logger.error(f"Error stopping scheduler: {e}")
+
     db_manager.close()
     logger.info("Application shutdown complete")
 

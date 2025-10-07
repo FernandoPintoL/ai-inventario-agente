@@ -39,6 +39,26 @@ class Settings(BaseSettings):
     railway_environment_name: Optional[str] = None
     railway_public_domain: Optional[str] = None
 
+    # Alertas Automáticas Configuration
+    alert_check_interval: int = 30  # minutos
+    alert_run_on_startup: bool = False  # Ejecutar verificación al iniciar
+
+    # SMTP Configuration
+    smtp_host: str = "sandbox.smtp.mailtrap.io"
+    smtp_port: int = 2525
+    smtp_user: str
+    smtp_password: str
+    alert_email_from: str
+    alert_email_to_str: str = ""  # Emails separados por coma
+
+    # Spam Control
+    alert_spam_interval_hours: int = 2  # Horas mínimas entre alertas del mismo producto
+
+    # Webhook Configuration
+    webhook_url: str = ""  # URL del endpoint Laravel: http://tu-dominio.com/api/webhooks/agente/notificacion
+    webhook_token: str = ""  # Token de autenticación para el webhook
+    webhook_enabled: bool = False  # Habilitar/deshabilitar envío de webhooks
+
     @field_validator('claude_api_key')
     @classmethod
     def validate_claude_key(cls, v):
@@ -117,6 +137,13 @@ class Settings(BaseSettings):
                 "max_overflow": self.db_max_overflow,
                 "pool_timeout": self.db_pool_timeout,
             }
+
+    @property
+    def alert_email_to(self) -> list[str]:
+        """Get list of alert email recipients."""
+        if not self.alert_email_to_str:
+            return []
+        return [email.strip() for email in self.alert_email_to_str.split(",") if email.strip()]
 
     class Config:
         env_file = ".env"
