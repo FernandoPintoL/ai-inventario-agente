@@ -4,6 +4,7 @@ Stock Monitor - Scheduler para monitoreo automático de stock
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
+import threading
 
 from app.services.alert_detector import alert_detector
 from app.services.notification_manager import notification_manager
@@ -91,9 +92,16 @@ class StockMonitor:
             logger.info("="*60)
 
             # Ejecutar inmediatamente la primera verificación (opcional)
+            # EN THREAD SEPARADO para no bloquear el startup de Railway
             if settings.alert_run_on_startup:
-                logger.info("Ejecutando verificación inicial...")
-                self.verificar_stock()
+                logger.info("Programando verificación inicial en background...")
+                thread = threading.Thread(
+                    target=self.verificar_stock,
+                    name="InitialStockCheck",
+                    daemon=True
+                )
+                thread.start()
+                logger.info("Verificación inicial programada (no bloqueante)")
 
         except Exception as e:
             logger.error(f"Error al iniciar scheduler: {e}")

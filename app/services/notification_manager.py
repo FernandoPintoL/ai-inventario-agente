@@ -281,10 +281,10 @@ Total de alertas: {alertas.total_alertas}
             mensaje.attach(parte_texto)
             mensaje.attach(parte_html)
 
-            # Enviar via SMTP
+            # Enviar via SMTP con timeout
             logger.info(f"Conectando a {self.smtp_host}:{self.smtp_port}")
 
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
                 server.starttls()  # Activar TLS
                 server.login(self.smtp_user, self.smtp_password)
                 server.send_message(mensaje)
